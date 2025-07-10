@@ -1,16 +1,12 @@
-import pool from "../../../lib/db";
+import { lastWeekData } from "./utils/utils";
 
-export async function GET() {
+export async function GET(req) {
   try {
-    const { rows } = await pool.query(`
-      SELECT id, created_at, read_at, temperature, humidity
-      FROM sensor_readings
-      ORDER BY created_at DESC
-    `);
+    const data = await lastWeekData();
 
-    return Response.json({ data: rows });
+    return Response.json(data);
   } catch (err) {
-    console.error("Database query failed:", err);
-    return Response.json({ error: "Database error" }, { status: 500 });
+    console.error("Failed to get last week data:", err);
+    return Response.json({ error: "Server error" }, { status: 500 });
   }
 }

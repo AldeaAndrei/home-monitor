@@ -24,6 +24,7 @@ ChartJS.register(
 
 export default function ClientHome() {
   const [readings, setReadings] = useState([]);
+  const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,6 +33,14 @@ export default function ClientHome() {
         const res = await fetch("/api/sensor_readings");
         const json = await res.json();
         setReadings(json.data || []);
+        setStats({
+          tempAvg: json.tempAvg,
+          tempMax: json.tempMax,
+          tempMin: json.tempMin,
+          humAvg: json.humAvg,
+          humMax: json.humMax,
+          humMin: json.humMin,
+        });
       } catch (err) {
         console.error("Failed to fetch sensor data", err);
       } finally {
@@ -51,7 +60,7 @@ export default function ClientHome() {
   const temperatureData = readings.map((r) => r.temperature);
   const humidityData = readings.map((r) => r.humidity);
 
-  const data = {
+  const dataTemp = {
     labels,
     datasets: [
       {
@@ -61,6 +70,12 @@ export default function ClientHome() {
         backgroundColor: "rgba(255, 99, 132, 0.5)",
         yAxisID: "y",
       },
+    ],
+  };
+
+  const dataHum = {
+    labels,
+    datasets: [
       {
         label: "Humidity (%)",
         data: humidityData,
@@ -71,7 +86,7 @@ export default function ClientHome() {
     ],
   };
 
-  const options = {
+  const optionsTemp = {
     responsive: true,
     interaction: {
       mode: "index",
@@ -87,9 +102,20 @@ export default function ClientHome() {
           display: true,
           text: "Temperature (°C)",
         },
-        min: 10,
-        max: 50,
+        min: stats.tempMin - stats.tempMin * 0.1,
+        max: stats.tempMax + stats.tempMax * 0.1,
       },
+    },
+  };
+
+  const optionsHum = {
+    responsive: true,
+    interaction: {
+      mode: "index",
+      intersect: false,
+    },
+    stacked: false,
+    scales: {
       y1: {
         type: "linear",
         display: true,
@@ -101,8 +127,8 @@ export default function ClientHome() {
           display: true,
           text: "Humidity (%)",
         },
-        min: 0,
-        max: 100,
+        min: stats.humMin - stats.humMin * 0.1,
+        max: stats.humMax + stats.humMax * 0.1,
       },
     },
   };
@@ -110,7 +136,18 @@ export default function ClientHome() {
   return (
     <div className="max-w-xl w-full">
       <h1 className="text-3xl font-bold mb-6">Latest Sensor Readings</h1>
-      <Line options={options} data={data} />
+      <h2 className="text-xl">Last temp: {readings[0].temperature}°C</h2>
+      <h2 className="text-md mb-6">
+        {"   "} stats: min = {stats.tempMin} max = {stats.tempMax} avg ={" "}
+        {stats.tempAvg}
+      </h2>
+      <h2 className="text-xl">Last hum: {readings[0].humidity}%</h2>
+      <h2 className="text-md mb-6">
+        {"   "} stats: min = {stats.humMin} max = {stats.humMax} avg ={" "}
+        {stats.humAvg}
+      </h2>
+      <Line options={optionsTemp} data={dataTemp} />
+      <Line options={optionsHum} data={dataHum} />
       <ul className="space-y-4 mt-6">
         {readings.map((reading) => (
           <li key={reading.id} className="p-4 border rounded-lg shadow">
