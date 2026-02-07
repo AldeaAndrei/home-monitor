@@ -1,11 +1,11 @@
-import { getLast48hData } from "@/lib/utils/utils";
+import { getDevices } from "@/lib/utils/utils";
 
 export async function GET(req) {
   try {
-    const data = await getLast48hData();
+    const data = await getDevices();
     return Response.json(data);
   } catch (err) {
-    console.error("Failed to get last 48h data:", err);
+    console.error("Failed to get sensors:", err);
     return Response.json({ error: "Server error" }, { status: 500 });
   }
 }
