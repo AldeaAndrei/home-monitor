@@ -157,6 +157,7 @@ export default function SensorPage({ readings }) {
       )}
       {isGraphs && (
         <section className="flex flex-col mt-15 gap-2 mx-1">
+          <TimeSeriesAreaChart title={"Battery Voltage"} data={readings} dataKey={"battery_voltage"} unit="V" />
           <TimeSeriesAreaChart title={"DHT22 Temperature"} data={readings} dataKey={"temperature22"} unit="°C" />
           <TimeSeriesAreaChart title={"DHT22 Humidity"} data={readings} dataKey={"humidity22"} unit="%" />
           <TimeSeriesAreaChart title={"DHT11 Temperature"} data={readings} dataKey={"temperature11"} unit="°C" />
