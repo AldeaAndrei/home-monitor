@@ -1,0 +1,53 @@
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Next.js build output
+.next
+out
+dist
+
+# Local env files (only copy explicitly if needed)
+.env
+.env*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Logs
+*.log
+logs
+logs/*
+
+# Editor folders
+.vscode
+.idea
+
+# Cache
+.cache
+.next-cache
+
+# Prisma
+prisma/*.db
+prisma/*.sqlite
+prisma/migrations/*-tmp
+
+# Docker itself
+Dockerfile*
+docker-compose*.yml
+
+# Testing
+coverage
+*.test.js
+*.spec.js
+
+# Misc
+*.swp
