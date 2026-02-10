@@ -70,7 +70,7 @@ export default function SensorPage({ readings }) {
           </p>
         </BasePanel>
       </section>
-      <section className="flex mt-15">
+      <section className="flex mt-10">
         <Button onClick={handleSelectSensors} selected={isSensors}>
           <p className="h-full flex justify-center items-center w-full">Values</p>
         </Button>
@@ -82,7 +82,10 @@ export default function SensorPage({ readings }) {
         <section>
           <li className="mx-1">
             <ul className="mt-7">
-              <h1 className="text-lg ml-2 mb-2 font-bold">DHT 11</h1>
+              <h1 className="text-lg ml-2 mb-0 font-bold">DHT 11</h1>
+              <h2 className="text-sm ml-2 mb-2 font-extralight text-gray-400">
+                Digital humidity & temperature sensor. Temp accuracy ±2 °C, humidity accuracy ±5 %RH
+              </h2>
               <ScrollView>
                 <Sensor
                   title={"DHT11"}
@@ -103,7 +106,10 @@ export default function SensorPage({ readings }) {
               </ScrollView>
             </ul>
             <ul className="mt-5">
-              <h1 className="text-lg ml-2 mb-2 font-bold">DHT 22</h1>
+              <h1 className="text-lg ml-2 mb-0 font-bold">DHT 22</h1>
+              <h2 className="text-sm ml-2 mb-2 font-extralight text-gray-400">
+                Digital humidity & temperature sensor. Temp accuracy ±0.5 °C, humidity accuracy ±2 %RH
+              </h2>
               <ScrollView>
                 <Sensor
                   title={"DHT22"}
@@ -124,7 +130,10 @@ export default function SensorPage({ readings }) {
               </ScrollView>
             </ul>
             <ul className="mt-5">
-              <h1 className="text-lg ml-2 mb-2 font-bold">BMP</h1>
+              <h1 className="text-lg ml-2 mb-0 font-bold">BMP</h1>
+              <h2 className="text-sm ml-2 mb-2 font-extralight text-gray-400">
+                Digital barometric pressure & temperature sensor. Pressure accuracy ±1 hPa, temperature accuracy ±1 °C
+              </h2>
               <ScrollView>
                 <Sensor
                   title={"BMP"}
@@ -156,7 +165,7 @@ export default function SensorPage({ readings }) {
         </section>
       )}
       {isGraphs && (
-        <section className="flex flex-col mt-15 gap-2 mx-1">
+        <section className="flex flex-col mt-7 gap-2 mx-1">
           <TimeSeriesAreaChart title={"Battery Voltage"} data={readings} dataKey={"battery_voltage"} unit="V" />
           <TimeSeriesAreaChart title={"DHT22 Temperature"} data={readings} dataKey={"temperature22"} unit="°C" />
           <TimeSeriesAreaChart title={"DHT22 Humidity"} data={readings} dataKey={"humidity22"} unit="%" />
