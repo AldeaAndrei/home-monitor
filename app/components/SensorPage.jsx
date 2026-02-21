@@ -7,13 +7,38 @@ import ScrollView from "./ScrollView";
 import BasePanel from "./BasePanel";
 import Button from "./Button";
 import TimeSeriesAreaChart from "./TimeSeriesLineChart";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-export default function SensorPage({ readings }) {
+export default function SensorPage({ initialReadings, deviceId }) {
   const [isSensors, setIsSensors] = useState(true);
   const [isGraphs, setIsGraphs] = useState(false);
+  const [period, setPeriod] = useState("last_2_days");
+  const [currentValue, setCurrentValue] = useState(initialReadings[0]);
+  const [readings, setReadings] = useState(initialReadings);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  const handleTimeframeChange = async (timeframe) => {
+    try {
+      setLoading(true);
+
+      const response = await fetch(`/api/readings?deviceId=${deviceId}&timeframe=${timeframe}`, { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch readings");
+      }
+
+      const data = await response.json();
+
+      setPeriod(timeframe);
+      setReadings(data);
+      setCurrentValue(data[0]);
+      setLoading(false);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const handleSelectGraphs = () => {
     setIsSensors(false);
@@ -47,7 +72,7 @@ export default function SensorPage({ readings }) {
       </section>
       <section className="flex">
         <BasePanel className="mx-1 flex-1 h-[150px] flex justify-center items-center flex-col">
-          <CustomPieChart value={readings[0].battery_voltage} max={5} />
+          <CustomPieChart value={currentValue?.battery_voltage} max={5} />
           <p className="mb-2 flex gap-3 font-extralight text-gray-400">
             <span>
               <BatteryCharging />
@@ -58,9 +83,9 @@ export default function SensorPage({ readings }) {
         <BasePanel className="mx-1 flex-1 h-[150px] flex justify-between items-center flex-col py-2 pt-8">
           <div>
             <p className="text-3xl text-center text-[#99C64C] font-extrabold">
-              {formatTime(readings[0].created_at).time}
+              {formatTime(currentValue?.created_at).time}
             </p>
-            <p className="text--lg text-center">{formatTime(readings[0].created_at).dayMonth}</p>
+            <p className="text--lg text-center">{formatTime(currentValue?.created_at).dayMonth}</p>
           </div>
           <p className="flex gap-3 font-extralight text-gray-400">
             <span className="">
@@ -71,12 +96,34 @@ export default function SensorPage({ readings }) {
         </BasePanel>
       </section>
       <section className="flex mt-10">
-        <Button onClick={handleSelectSensors} selected={isSensors}>
+        <Button onClick={handleSelectSensors} selected={isSensors} disabled={loading}>
           <p className="h-full flex justify-center items-center w-full">Values</p>
         </Button>
-        <Button onClick={handleSelectGraphs} selected={isGraphs}>
+        <Button onClick={handleSelectGraphs} selected={isGraphs} disabled={loading || readings.length < 1}>
           <p className="h-full flex justify-center items-center w-full">Graphs</p>
         </Button>
+      </section>
+      <section className="flex mt-2">
+        <Button
+          onClick={() => handleTimeframeChange("last_2_days")}
+          selected={period === "last_2_days"}
+          disabled={loading}
+        >
+          <p className="h-full flex justify-center items-center w-full">Last 2 Days</p>
+        </Button>
+        <Button onClick={() => handleTimeframeChange("last_week")} selected={period === "last_week"} disabled={loading}>
+          <p className="h-full flex justify-center items-center w-full">Last Week</p>
+        </Button>
+        <Button
+          onClick={() => handleTimeframeChange("last_month")}
+          selected={period === "last_month"}
+          disabled={loading}
+        >
+          <p className="h-full flex justify-center items-center w-full">Last Month</p>
+        </Button>
+        {/* <Button onClick={() => handleTimeframeChange("last_year")} selected={period === "last_year"} disabled={loading}>
+          <p className="h-full flex justify-center items-center w-full">Last Year</p>
+        </Button> */}
       </section>
       {isSensors && (
         <section>
@@ -89,7 +136,7 @@ export default function SensorPage({ readings }) {
               <ScrollView>
                 <Sensor
                   title={"DHT11"}
-                  value={readings[0].temperature11}
+                  value={currentValue?.temperature11}
                   range={{ min: 10, max: 40, reverse: false }}
                   unit={"°C"}
                   icon={<Thermometer />}
@@ -97,7 +144,7 @@ export default function SensorPage({ readings }) {
                 />
                 <Sensor
                   title={"DHT11"}
-                  value={readings[0].humidity11}
+                  value={currentValue?.humidity11}
                   range={{ min: 0, max: 100, reverse: false }}
                   unit={"%"}
                   icon={<Droplet />}
@@ -113,7 +160,7 @@ export default function SensorPage({ readings }) {
               <ScrollView>
                 <Sensor
                   title={"DHT22"}
-                  value={readings[0].temperature22}
+                  value={currentValue?.temperature22}
                   range={{ min: 10, max: 40, reverse: false }}
                   unit={"°C"}
                   icon={<Thermometer />}
@@ -121,7 +168,7 @@ export default function SensorPage({ readings }) {
                 />
                 <Sensor
                   title={"DHT22"}
-                  value={readings[0].humidity22}
+                  value={currentValue?.humidity22}
                   range={{ min: 0, max: 100, reverse: false }}
                   unit={"%"}
                   icon={<Droplet />}
@@ -137,7 +184,7 @@ export default function SensorPage({ readings }) {
               <ScrollView>
                 <Sensor
                   title={"BMP"}
-                  value={readings[0].bmp_temperature}
+                  value={currentValue?.bmp_temperature}
                   range={{ min: 10, max: 40, reverse: false }}
                   unit={"°C"}
                   icon={<Thermometer />}
@@ -145,7 +192,7 @@ export default function SensorPage({ readings }) {
                 />
                 <Sensor
                   title={"BMP"}
-                  value={(readings[0].bmp_pressure * 0.000987).toFixed(2)}
+                  value={(currentValue?.bmp_pressure * 0.000987).toFixed(2)}
                   range={{ min: 0.95, max: 1.05, reverse: false }}
                   unit={"atm"}
                   icon={<GaugeCircle />}
@@ -153,7 +200,7 @@ export default function SensorPage({ readings }) {
                 />
                 <Sensor
                   title={"BMP"}
-                  value={readings[0].bmp_altitude}
+                  value={currentValue?.bmp_altitude}
                   range={{ min: 0, max: 4000, reverse: false }}
                   unit={"m"}
                   icon={<Ruler />}
@@ -166,14 +213,62 @@ export default function SensorPage({ readings }) {
       )}
       {isGraphs && (
         <section className="flex flex-col mt-7 gap-2 mx-1">
-          <TimeSeriesAreaChart title={"Battery Voltage"} data={readings} dataKey={"battery_voltage"} unit="V" />
-          <TimeSeriesAreaChart title={"DHT22 Temperature"} data={readings} dataKey={"temperature22"} unit="°C" />
-          <TimeSeriesAreaChart title={"DHT22 Humidity"} data={readings} dataKey={"humidity22"} unit="%" />
-          <TimeSeriesAreaChart title={"DHT11 Temperature"} data={readings} dataKey={"temperature11"} unit="°C" />
-          <TimeSeriesAreaChart title={"DHT11 Humidity"} data={readings} dataKey={"humidity11"} unit="%" />
-          <TimeSeriesAreaChart title={"BMP Temperature"} data={readings} dataKey={"bmp_temperature"} unit="°C" />
-          <TimeSeriesAreaChart title={"BMP Pressure"} data={readings} dataKey={"bmp_pressure"} unit="hPa" />
-          <TimeSeriesAreaChart title={"BMP Altitude"} data={readings} dataKey={"bmp_altitude"} unit="m" />
+          <TimeSeriesAreaChart
+            loading={loading}
+            title={"Battery Voltage"}
+            data={readings}
+            dataKey={"battery_voltage"}
+            unit="V"
+          />
+          <TimeSeriesAreaChart
+            loading={loading}
+            title={"DHT22 Temperature"}
+            data={readings}
+            dataKey={"temperature22"}
+            unit="°C"
+          />
+          <TimeSeriesAreaChart
+            loading={loading}
+            title={"DHT22 Humidity"}
+            data={readings}
+            dataKey={"humidity22"}
+            unit="%"
+          />
+          <TimeSeriesAreaChart
+            loading={loading}
+            title={"DHT11 Temperature"}
+            data={readings}
+            dataKey={"temperature11"}
+            unit="°C"
+          />
+          <TimeSeriesAreaChart
+            loading={loading}
+            title={"DHT11 Humidity"}
+            data={readings}
+            dataKey={"humidity11"}
+            unit="%"
+          />
+          <TimeSeriesAreaChart
+            loading={loading}
+            title={"BMP Temperature"}
+            data={readings}
+            dataKey={"bmp_temperature"}
+            unit="°C"
+          />
+          <TimeSeriesAreaChart
+            loading={loading}
+            title={"BMP Pressure"}
+            data={readings}
+            dataKey={"bmp_pressure"}
+            unit="hPa"
+          />
+          <TimeSeriesAreaChart
+            loading={loading}
+            title={"BMP Altitude"}
+            data={readings}
+            dataKey={"bmp_altitude"}
+            unit="m"
+          />
         </section>
       )}
     </div>

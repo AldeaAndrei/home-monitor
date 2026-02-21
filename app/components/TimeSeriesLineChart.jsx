@@ -1,29 +1,45 @@
 "use client";
 
+import { useMemo } from "react";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, ReferenceDot, Label } from "recharts";
 import BasePanel from "./BasePanel";
 
-export default function TimeSeriesAreaChart({ data, dataKey, unit, color = "#99C64C", title, range = [0, 100] }) {
-  // Map and sort data by created_at
-  const chartData = data
-    .map((d) => {
-      return {
+export default function TimeSeriesAreaChart({
+  loading,
+  data,
+  dataKey,
+  unit,
+  color = "#99C64C",
+  title,
+  range = [0, 100],
+}) {
+  const chartData = useMemo(() => {
+    return data
+      .map((d) => ({
         ...d,
         ts: new Date(d.created_at).getTime(),
-      };
-    })
-    .sort((a, b) => a.ts - b.ts);
+      }))
+      .sort((a, b) => a.ts - b.ts);
+  }, [data]);
 
-  const values = chartData.filter((d) => typeof d[dataKey] === "number");
+  const values = useMemo(() => chartData.filter((d) => typeof d[dataKey] === "number"), [chartData, dataKey]);
 
-  const minPoint = values.reduce((a, b) => (b[dataKey] < a[dataKey] ? b : a));
-  const maxPoint = values.reduce((a, b) => (b[dataKey] > a[dataKey] ? b : a));
+  const minPoint = useMemo(() => {
+    if (!values.length) return null;
+    return values.reduce((a, b) => (b[dataKey] < a[dataKey] ? b : a));
+  }, [values, dataKey]);
 
-  const minValue = minPoint[dataKey];
-  const maxValue = maxPoint[dataKey];
+  const maxPoint = useMemo(() => {
+    if (!values.length) return null;
+    return values.reduce((a, b) => (b[dataKey] > a[dataKey] ? b : a));
+  }, [values, dataKey]);
 
-  const off = 0.05;
-  range = [Math.floor(minValue * (1 - off)), Math.ceil(maxValue * (1 + off))];
+  if (minPoint && maxPoint) {
+    const off = 0.05;
+    const minValue = minPoint[dataKey];
+    const maxValue = maxPoint[dataKey];
+    range = [Math.floor(minValue * (1 - off)), Math.ceil(maxValue * (1 + off))];
+  }
 
   const formatTs = (ts) =>
     new Date(ts).toLocaleString([], {
@@ -40,64 +56,80 @@ export default function TimeSeriesAreaChart({ data, dataKey, unit, color = "#99C
   return (
     <BasePanel className="text-foreground py-1">
       <h1 className="text-lg ml-7 mb-0 font-bold">{title}</h1>
+
       {minTs && maxTs && (
         <p className="text-sm text-foreground/70 ml-7 mb-3">
           Data from {formatTs(minTs)} - {formatTs(maxTs)}
         </p>
       )}
-      <div className="w-full h-52 pr-3">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData}>
-            <XAxis
-              stroke="currentColor"
-              dataKey="ts"
-              domain={["dataMin", "dataMax"]}
-              type="number"
-              tickFormatter={(v) =>
-                new Date(v).toLocaleString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: false,
-                })
-              }
-              angle={0}
-              textAnchor="start"
-              height={50}
-              tickSize={10}
-              tick={{ fontSize: 10 }}
-              tickCount={10}
-            />
 
-            <YAxis
-              stroke="currentColor"
-              tickFormatter={(v) => `${v}${unit}`}
-              width={50}
-              domain={range}
-              tick={{ fontSize: 10 }}
-            />
+      <div className="relative w-full h-52 pr-3">
+        {loading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+            <div className="h-8 w-8 animate-spin rounded-lg border-4 border-muted border-t-primary" />
+          </div>
+        )}
 
-            {minPoint && (
-              <ReferenceDot x={minPoint.ts} y={minPoint[dataKey]} r={5} fill="#4da8c7" stroke="black">
-                <Label value={`${minPoint[dataKey]}${unit}`} position="bottom" fill="#4da8c7" fontSize={12} />
-              </ReferenceDot>
-            )}
+        {!loading && data.length < 1 && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+            No data
+          </div>
+        )}
 
-            {maxPoint && (
-              <ReferenceDot x={maxPoint.ts} y={maxPoint[dataKey]} r={5} fill="#c74d4d" stroke="black">
-                <Label value={`${maxPoint[dataKey]}${unit}`} position="top" fill="#c74d4d" fontSize={12} />
-              </ReferenceDot>
-            )}
+        {!loading && data.length > 0 && (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData}>
+              <XAxis
+                stroke="currentColor"
+                dataKey="ts"
+                domain={["dataMin", "dataMax"]}
+                type="number"
+                tickFormatter={(v) =>
+                  new Date(v).toLocaleString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  })
+                }
+                angle={0}
+                textAnchor="start"
+                height={50}
+                tickSize={10}
+                tick={{ fontSize: 10 }}
+                tickCount={10}
+              />
 
-            <Area
-              type="monotone"
-              dataKey={dataKey} // single field from props
-              stroke={color}
-              fill={color + "BB"}
-              strokeWidth={2}
-              isAnimationActive
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+              <YAxis
+                stroke="currentColor"
+                tickFormatter={(v) => `${v}${unit}`}
+                width={50}
+                domain={range}
+                tick={{ fontSize: 10 }}
+              />
+
+              {minPoint && (
+                <ReferenceDot x={minPoint.ts} y={minPoint[dataKey]} r={5} fill="#4da8c7" stroke="black">
+                  <Label value={`${minPoint[dataKey]}${unit}`} position="bottom" fill="#4da8c7" fontSize={12} />
+                </ReferenceDot>
+              )}
+
+              {maxPoint && (
+                <ReferenceDot x={maxPoint.ts} y={maxPoint[dataKey]} r={5} fill="#c74d4d" stroke="black">
+                  <Label value={`${maxPoint[dataKey]}${unit}`} position="top" fill="#c74d4d" fontSize={12} />
+                </ReferenceDot>
+              )}
+
+              <Area
+                type="monotone"
+                dataKey={dataKey}
+                stroke={color}
+                fill={color + "BB"}
+                strokeWidth={2}
+                isAnimationActive
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </BasePanel>
   );

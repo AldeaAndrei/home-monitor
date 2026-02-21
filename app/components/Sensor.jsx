@@ -21,8 +21,8 @@ export default function Sensor({ title, value, unit, icon, color, range }) {
     <BasePanel className="aspect-square w-20 h-20 flex flex-col justify-center gap-2 items-center">
       {icon}
       <p className="" style={{ color: textColor }}>
-        {value}
-        <span className="ml-1">{unit}</span>
+        {value ?? "-"}
+        <span className="ml-1">{value ? unit : ""}</span>
       </p>
     </BasePanel>
   );
