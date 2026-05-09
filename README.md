@@ -72,7 +72,11 @@ The graph compares discharge rates between:
 
 The data shows voltage behavior over time under the same load conditions. In both cases, the batteries lasted around 11 days before the voltage dropped too low to power the ESP32 reliably.
 
-The graph below shows the current draw while in deep sleep (8mA) and during the data transmission (150mA).
+## Power Measurement Update
+
+Update date May 9, 2026
+
+Current was measured with an Arduino Uno and an INA219 module on the main supply line of the ESP32 board. The graph shows about 8 mA in deep sleep and up to about 150 mA during data send. I also disconnected DHT11, DHT22, and BMP280 during deep sleep and the current stayed almost the same, which suggests sensor load is not the main issue.
 <p align="center">
   <img width="709" height="376" alt="image" src="https://github.com/user-attachments/assets/4637d4e5-8afc-4004-ba20-f5eb24d3f7df" />
 </p>
