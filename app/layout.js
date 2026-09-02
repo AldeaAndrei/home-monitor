@@ -1,8 +1,9 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Nunito } from "next/font/google";
+import Header from "@/app/components/Header";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const nunito = Nunito({
+  variable: "--font-nunito",
   subsets: ["latin"],
 });
 
@@ -24,8 +25,9 @@ export const dynamic = "force-dynamic";
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <main className="bg-slate-900 min-h-screen">{children}</main>
+      <body className={`${nunito.variable} ${geistMono.variable} antialiased font-sans`}>
+        <Header />
+        <main className="min-h-screen">{children}</main>
       </body>
     </html>
   );

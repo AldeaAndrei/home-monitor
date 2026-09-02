@@ -8,12 +8,6 @@ export default async function ClientHome() {
 
   return (
     <main className="flex flex-col gap-3 p-0">
-      <section className="h-20 text-2xl text-center justify-between items-center flex px-2">
-        <h1>Home Monitoring</h1>
-        <div>
-          <Menu />
-        </div>
-      </section>
       <section className="mx-1">
         <li>
           {devices.map((device) => {

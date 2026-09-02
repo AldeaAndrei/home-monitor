@@ -1,4 +1,6 @@
-import { getDataByRange } from "@/lib/utils/utils";
+import { getDataByRange, getDataSummaryForDevice } from "@/lib/utils/utils";
+
+export const dynamic = "force-dynamic";
 
 const ALLOWED_RANGES = ["last_2_days", "last_week", "last_month", "last_year"];
 
@@ -8,6 +10,7 @@ export async function GET(req) {
 
     const deviceId = searchParams.get("deviceId");
     const timeframe = searchParams.get("timeframe") || "last_2_days";
+    const isSummary = searchParams.get("isSummary") || false;
 
     if (!deviceId) {
       return Response.json({ error: "Missing deviceId" }, { status: 400 });
@@ -18,6 +21,11 @@ export async function GET(req) {
     }
 
     const data = await getDataByRange(deviceId, timeframe);
+
+    if (isSummary) {
+      const summary = await getDataSummaryForDevice(deviceId);
+      return Response.json(summary);
+    }
 
     return Response.json(data);
   } catch (err) {
