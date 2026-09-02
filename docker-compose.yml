@@ -6,10 +6,27 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runner
     ports:
       - "3020:3000"
     env_file:
       - .env
+    networks:
+      - home-monitor-net
+    restart: unless-stopped
+
+  summary:
+    container_name: home_monitor_summary
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: scheduler
+    env_file:
+      - .env
+    environment:
+      - TZ=UTC
+    volumes:
+      - ./.env:/app/.env:ro
     networks:
       - home-monitor-net
     restart: unless-stopped

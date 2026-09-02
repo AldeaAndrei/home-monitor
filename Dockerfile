@@ -57,3 +57,23 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 CMD ["node", "server.js"]
+
+# -------------------
+# Scheduler (daily summary cron)
+# -------------------
+FROM base AS scheduler
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV TZ=UTC
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json ./
+COPY lib ./lib
+COPY app/scripts ./app/scripts
+
+COPY docker/crontab /etc/crontabs/root
+# BusyBox cron rejects CRLF line endings and non-0600 crontabs
+RUN sed -i 's/\r$//' /etc/crontabs/root && chmod 0600 /etc/crontabs/root
+
+CMD ["crond", "-f", "-d", "8"]
