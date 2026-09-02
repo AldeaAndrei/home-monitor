@@ -1,4 +1,6 @@
 import pool from "../../lib/db.js";
+import OpenAI from "openai";
+const openai = new OpenAI();
 
 function parseRowData(raw) {
   const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
@@ -87,26 +89,113 @@ async function getReadingsForDay(deviceId, date) {
   }));
 }
 
-async function saveSummary(deviceId, summaryDate, previousDate, sensors) {
-  await pool.query(
-    `DELETE FROM sensor_summary
-     WHERE device_id = $1
-       AND date = $2::date`,
-    [deviceId, summaryDate]
-  );
+const AI_MODEL = "gpt-5.4-mini";
+const PLANT_TYPE = "pothos";
+const VALID_ACTIONS = new Set(["water", "fan", "shade"]);
 
-  await pool.query(
-    `INSERT INTO sensor_summary (device_id, date, fields)
-     VALUES ($1, $2::date, $3::json)`,
-    [
-      deviceId,
-      summaryDate,
-      JSON.stringify({
-        compared_to: previousDate,
-        sensors,
-      }),
-    ]
-  );
+const SYSTEM_PROMPT = `You are a plant care assistant for a ${PLANT_TYPE}. You receive a daily sensor summary and must assess the plant's situation and decide what actions to take.
+
+Respond with ONLY valid JSON in this exact shape:
+{
+  "ai_summary": "<short objective paragraph>",
+  "actions": []
+}
+
+Rules:
+- "ai_summary": a short objective paragraph (2-4 sentences) about the plant situation and environment, based only on the provided summary.
+- "actions": an array of actions you decide are needed. Each item MUST be exactly one of the allowed actions below. Use an empty array if none are needed.
+
+Allowed actions:
+- "water" — water the plant soil
+- "fan" — start a fan that blows air on the plant
+- "shade" — raise a shade over the plant
+
+Do not invent sensor values. Do not output markdown or any text outside the JSON object.`;
+
+function buildUserPrompt(summaryDate, deviceName, previousDate, sensors) {
+  const summary = {
+    compared_to: previousDate,
+    sensors,
+  };
+
+  return `Date: ${summaryDate}
+Device: ${deviceName}
+Plant: ${PLANT_TYPE}
+
+Summary:
+${JSON.stringify(summary, null, 2)}`;
+}
+
+function parseAiResponse(rawContent) {
+  const parsed = JSON.parse(rawContent);
+  const summary =
+    typeof parsed.ai_summary === "string" ? parsed.ai_summary.trim() : null;
+  const actions = Array.isArray(parsed.actions)
+    ? [...new Set(parsed.actions.filter((action) => VALID_ACTIONS.has(action)))]
+    : [];
+
+  if (!summary) {
+    throw new Error("LLM response missing ai_summary string");
+  }
+
+  return { model: AI_MODEL, summary, actions };
+}
+
+async function generateAiSummary(summaryDate, previousDate, deviceName, sensors) {
+  try {
+    const response = await openai.chat.completions.create({
+      model: AI_MODEL,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: buildUserPrompt(summaryDate, deviceName, previousDate, sensors),
+        },
+      ],
+    });
+
+    return parseAiResponse(response.choices[0].message.content);
+  } catch (err) {
+    console.warn(`  AI summary failed: ${err.message}`);
+    return null;
+  }
+}
+
+async function saveSummary(deviceId, summaryDate, previousDate, sensors, aiSummary) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    await client.query(
+      `DELETE FROM sensor_summary
+       WHERE device_id = $1
+         AND date = $2::date`,
+      [deviceId, summaryDate]
+    );
+
+    await client.query(
+      `INSERT INTO sensor_summary (device_id, date, fields, ai_summary)
+       VALUES ($1, $2::date, $3::json, $4::json)`,
+      [
+        deviceId,
+        summaryDate,
+        JSON.stringify({
+          compared_to: previousDate,
+          sensors,
+        }),
+        aiSummary ? JSON.stringify(aiSummary) : null,
+      ]
+    );
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 async function run(summaryDate) {
@@ -156,7 +245,20 @@ async function run(summaryDate) {
     }
 
     if (sensors.length > 0) {
-      await saveSummary(device.id, summaryDate, previousDate, sensors);
+      const aiSummary = await generateAiSummary(
+        summaryDate,
+        previousDate,
+        device.name,
+        sensors
+      );
+
+      if (aiSummary) {
+        console.log(
+          `  AI: ${aiSummary.actions.length > 0 ? aiSummary.actions.join(", ") : "no actions"}`
+        );
+      }
+
+      await saveSummary(device.id, summaryDate, previousDate, sensors, aiSummary);
     }
   }
 }
