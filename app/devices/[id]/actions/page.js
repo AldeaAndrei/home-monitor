@@ -4,7 +4,7 @@ import BasePanel from "@/app/components/BasePanel";
 import DeviceCard from "@/app/components/DeviceCard";
 import IconBubble from "@/app/components/IconBubble";
 import { selectedUnit } from "@/lib/utils/client";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
+import { BrainCircuit, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
 
@@ -136,7 +136,7 @@ export default function DeviceActionsPage() {
 
     const SummaryCard = () => {
       return (
-        <BasePanel className="flex flex-col w-full h-full">
+        <BasePanel className="flex flex-col w-full h-full md:max-w-1/2">
           <div className="flex flex-row w-full h-full justify-between items-center mb-5 mt-3">
             <ChevronLeft className={`cursor-pointer ${canDecrementDate ? "opacity-100" : "opacity-50"}`} onClick={handleDecrementDate} disabled={!canDecrementDate} />
             <span>{selectedDate}</span>
@@ -147,7 +147,21 @@ export default function DeviceActionsPage() {
               <SensorSummaryCard key={sensor.field} sensor={sensor} />
             ))}
           </div>
+        </BasePanel>
+      )
+    }
 
+    const AssistantCard = () => {
+      return (
+        <BasePanel className="flex flex-col w-full h-full">
+          <div className="flex flex-row items-center justify-start gap-2 p-2"><BrainCircuit className="text-[#9c9fa0] w-4 h-4"/><span className="text-sm text-[#9c9fa0]">{summary?.[selectedDate]?.ai_summary?.model}</span></div>
+          <p className="text-md text-[#d6d8d8] p-2">{summary?.[selectedDate]?.ai_summary?.summary}</p>
+          <div className="flex flex-row items-center justify-start gap-2 p-2">
+          {summary?.[selectedDate]?.ai_summary?.actions.length > 0 && <span className="text-sm text-[#9c9fa0]">Recommended: </span>}
+            {summary?.[selectedDate]?.ai_summary?.actions.map((action) => (
+                <span key={action} className="text-sm text-[#9c9fa0]">{action}</span>
+            ))}
+          </div>
         </BasePanel>
       )
     }
@@ -155,18 +169,10 @@ export default function DeviceActionsPage() {
     return (
       <div className="flex flex-col gap-4 p-4">
         <DeviceCard deviceConfig={deviceConfig} lastSeenAt={summary?.last_seen_at} />
-        <SummaryCard />
-        {/* <div>
-          {summary && summary.summaries.map((summary) => (
-            <div key={summary.id}>
-              <h1>{summary.date}</h1>
-              <ul>{summary.sensors.map((sensor) => (
-                <li key={sensor.field}>{sensor.title}: {sensor.avg} ({sensor.change_percent}%)</li>
-              ))}
-            </ul>
-          </div>
-          ))}
-        </div> */}
+        <div className="flex flex-col md:flex-row gap-4">
+          <SummaryCard />
+          <AssistantCard />
+        </div>
       </div>
     );
   }
