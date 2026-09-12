@@ -1,0 +1,1 @@
+10 0,6,12,18 * * * cd /app && node --env-file=/app/.env app/scripts/dailySummary.js >> /proc/1/fd/1 2>&1

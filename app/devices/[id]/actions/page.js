@@ -154,11 +154,11 @@ export default function DeviceActionsPage() {
     const AssistantCard = () => {
       return (
         <BasePanel className="flex flex-col w-full h-full">
-          <div className="flex flex-row items-center justify-start gap-2 p-2"><BrainCircuit className="text-[#9c9fa0] w-4 h-4"/><span className="text-sm text-[#9c9fa0]">{summary?.[selectedDate]?.ai_summary?.model}</span></div>
-          <p className="text-md text-[#d6d8d8] p-2">{summary?.[selectedDate]?.ai_summary?.summary}</p>
+          <div className="flex flex-row items-center justify-start gap-2 p-2"><BrainCircuit className="text-[#9c9fa0] w-4 h-4"/><span className="text-sm text-[#9c9fa0]">{summary?.[selectedDate]?.ai_summary?.model || "No model available"}</span></div>
+          <p className="text-md text-[#d6d8d8] p-2">{summary?.[selectedDate]?.ai_summary?.summary || "No summary available"}</p>
           <div className="flex flex-row items-center justify-start gap-2 p-2">
-          {summary?.[selectedDate]?.ai_summary?.actions.length > 0 && <span className="text-sm text-[#9c9fa0]">Recommended: </span>}
-            {summary?.[selectedDate]?.ai_summary?.actions.map((action) => (
+          {summary?.[selectedDate]?.ai_summary?.actions?.length > 0 && <span className="text-sm text-[#9c9fa0]">Recommended: </span>}
+            {summary?.[selectedDate]?.ai_summary?.actions?.map((action) => (
                 <span key={action} className="text-sm text-[#9c9fa0]">{action}</span>
             ))}
           </div>

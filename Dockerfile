@@ -65,7 +65,10 @@ FROM base AS scheduler
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV TZ=UTC
+ENV TZ=Europe/Bucharest
+
+# Without tzdata Alpine silently falls back to UTC and cron fires at the wrong hour
+RUN apk add --no-cache tzdata
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./

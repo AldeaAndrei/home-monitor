@@ -24,7 +24,7 @@ services:
     env_file:
       - .env
     environment:
-      - TZ=UTC
+      - TZ=Europe/Bucharest
     volumes:
       - ./.env:/app/.env:ro
     networks:
