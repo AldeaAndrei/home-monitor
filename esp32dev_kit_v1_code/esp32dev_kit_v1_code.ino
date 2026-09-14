@@ -42,7 +42,7 @@ const char* DEVICE_TYPE = "ESP32_DEV_KIT_V1";
 #define SAMPLE_DELAY_MS 200
 
 // Pump may never run longer than this, whatever the caller asks for.
-#define PUMP_MAX_RUN_MS 2000
+#define PUMP_MAX_RUN_MS 5000
 #define PUMP_SPEED 255
 
 
