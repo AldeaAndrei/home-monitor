@@ -47,12 +47,26 @@ export default function DeviceActionsPage() {
       let summaryHash = {};
 
       summaries.forEach(summary => {
-        summaryHash[summary.date] = summary;
+        summaryHash[summary.date + " " + summary.timeframe] = summary;
       });
 
       setSummary(summaryHash);
 
-      const dates = Object.keys(summaryHash).map(date => new Date(date)).sort((a, b) => a - b).map(date => date.toISOString().split('T')[0]);
+      const TIMEFRAME_ORDER = {
+        night: 0,
+        morning: 1,
+        afternoon: 2,
+        evening: 3,
+      };
+
+      const dates = Object.keys(summaryHash).sort((a, b) => {
+        const [dateA, timeframeA] = a.split(" ");
+        const [dateB, timeframeB] = b.split(" ");
+
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+
+        return (TIMEFRAME_ORDER[timeframeA] ?? 99) - (TIMEFRAME_ORDER[timeframeB] ?? 99);
+      });
       setSummaryDates(dates);
       setSelectedDate(dates[dates.length - 1]);
       
@@ -168,7 +182,7 @@ export default function DeviceActionsPage() {
 
     return (
       <div className="flex flex-col gap-4 p-4">
-        <DeviceCard deviceConfig={deviceConfig} lastSeenAt={summary?.last_seen_at} />
+        <DeviceCard deviceConfig={deviceConfig} lastSeenAt={deviceConfig?.last_seen_at} />
         <div className="flex flex-col md:flex-row gap-4">
           <SummaryCard />
           <AssistantCard />

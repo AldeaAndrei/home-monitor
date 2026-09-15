@@ -5,8 +5,6 @@ import DeviceCard from "./components/DeviceCard";
 export default async function Home() {
   const devices = await getDevices();
 
-console.log(devices);
-
   return (
     <main className="flex flex-col gap-4 px-4 md:max-w-1/2">
       {devices.map((device) => {
