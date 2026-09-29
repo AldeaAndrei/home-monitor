@@ -165,15 +165,92 @@ export default function DeviceActionsPage() {
       )
     }
 
+    const getConclusionText = (aiSummary) => {
+      const value = aiSummary?.summary;
+      if (typeof value === "string") return value;
+      if (!Array.isArray(value)) return null;
+
+      for (let i = value.length - 1; i >= 0; i -= 1) {
+        const step = value[i];
+        if (step?.kind === "conclusion" && typeof step.text === "string" && step.text.trim()) {
+          return step.text.trim();
+        }
+      }
+      return null;
+    };
+
+    const getChainSteps = (aiSummary) => {
+      const value = aiSummary?.summary;
+      if (!Array.isArray(value)) return [];
+      return value.filter((step) =>
+        step?.kind === "reason" || step?.kind === "tool" || step?.kind === "conclusion"
+      );
+    };
+
+    const formatToolArgs = (args) => {
+      if (!args || typeof args !== "object" || Object.keys(args).length === 0) return "";
+      return ` (${Object.entries(args).map(([k, v]) => `${k}=${v}`).join(", ")})`;
+    };
+
+    const ChainStep = ({ step }) => {
+      if (step.kind === "reason") {
+        return (
+          <div className="flex flex-col gap-1 border-l border-[#3a3d3e] pl-3">
+            <span className="text-xs uppercase tracking-wide text-[#9c9fa0]">Reasoning</span>
+            <p className="text-sm text-[#d6d8d8]">{step.text}</p>
+          </div>
+        );
+      }
+
+      if (step.kind === "tool") {
+        return (
+          <div className="flex flex-col gap-1 border-l border-[#3a3d3e] pl-3">
+            <span className="text-xs uppercase tracking-wide text-[#9c9fa0]">
+              Tool · {step.tool}{formatToolArgs(step.arguments)}
+            </span>
+          </div>
+        );
+      }
+
+      if (step.kind === "conclusion") {
+        return (
+          <div className="flex flex-col gap-1 border-l border-[#9ec962] pl-3">
+            <span className="text-xs uppercase tracking-wide text-[#9ec962]">Conclusion</span>
+            <p className="text-sm text-[#d6d8d8]">{step.text}</p>
+          </div>
+        );
+      }
+
+      return null;
+    };
+
     const AssistantCard = () => {
+      const aiSummary = summary?.[selectedDate]?.ai_summary;
+      const chain = getChainSteps(aiSummary);
+      const legacyConclusion = typeof aiSummary?.summary === "string" ? aiSummary.summary : null;
+
       return (
         <BasePanel className="flex flex-col w-full h-full">
-          <div className="flex flex-row items-center justify-start gap-2 p-2"><BrainCircuit className="text-[#9c9fa0] w-4 h-4"/><span className="text-sm text-[#9c9fa0]">{summary?.[selectedDate]?.ai_summary?.model || "No model available"}</span></div>
-          <p className="text-md text-[#d6d8d8] p-2">{summary?.[selectedDate]?.ai_summary?.summary || "No summary available"}</p>
           <div className="flex flex-row items-center justify-start gap-2 p-2">
-          {summary?.[selectedDate]?.ai_summary?.actions?.length > 0 && <span className="text-sm text-[#9c9fa0]">Recommended: </span>}
-            {summary?.[selectedDate]?.ai_summary?.actions?.map((action) => (
-                <span key={action} className="text-sm text-[#9c9fa0]">{action}</span>
+            <BrainCircuit className="text-[#9c9fa0] w-4 h-4"/>
+            <span className="text-sm text-[#9c9fa0]">{aiSummary?.model || "No model available"}</span>
+          </div>
+
+          {chain.length > 0 ? (
+            <div className="flex flex-col gap-3 p-2">
+              <span className="text-sm text-[#9c9fa0]">Agent chain</span>
+              {chain.map((step) => (
+                <ChainStep key={`${step.step}-${step.kind}-${step.tool ?? "text"}`} step={step} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-md text-[#d6d8d8] p-2">{legacyConclusion || "No summary available"}</p>
+          )}
+
+          <div className="flex flex-row items-center justify-start gap-2 p-2">
+            {aiSummary?.actions?.length > 0 && <span className="text-sm text-[#9c9fa0]">Recommended: </span>}
+            {aiSummary?.actions?.map((action) => (
+              <span key={action} className="text-sm text-[#9c9fa0]">{action}</span>
             ))}
           </div>
         </BasePanel>

@@ -1,11 +1,7 @@
 import pool from "../../lib/db.js";
-import OpenAI from "openai";
-const openai = new OpenAI();
+import { AI_MODEL, PLANT_TYPE, TIME_ZONE, runPlantAgent } from "./plantAgent.js";
 
 const AI_ENABLED = true;
-const AI_MODEL = "gpt-5.4-mini";
-const PLANT_TYPE = "pothos";
-const TIME_ZONE = "Europe/Bucharest";
 const CONTEXT_SEGMENTS = 4;
 const DEFAULT_ACTIONS = ["water", "fan", "shade"];
 
@@ -15,23 +11,6 @@ const SEGMENTS = [
   { name: "afternoon", startHour: 12, endHour: 18 },
   { name: "evening", startHour: 18, endHour: 24 },
 ];
-
-const ACTION_DESCRIPTIONS = {
-  water: "water the plant soil",
-  fan: "start a fan that blows air on the plant",
-  shade: "raise a shade over the plant",
-};
-
-const UNITS = {
-  temperature: "C",
-  humidity: "%",
-  pressure: "hPa",
-  light: "lux",
-  uv: "idx",
-  soil: "%",
-  cpu: "%",
-  battery: "V",
-};
 
 function parseRowData(raw) {
   const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
@@ -199,175 +178,6 @@ function resolveAllowedActions(device) {
   return Array.isArray(configured) && configured.length > 0 ? configured : DEFAULT_ACTIONS;
 }
 
-function buildSystemPrompt(allowedActions) {
-  const actionLines = allowedActions
-    .map((action) => `- "${action}" - ${ACTION_DESCRIPTIONS[action] ?? action}`)
-    .join("\n");
-
-  return `You are a plant care assistant for a ${PLANT_TYPE}. You receive sensor readings for one time segment plus the previous 24 hours of context, and must assess the plant's situation and decide what actions to take.
-
-Respond with ONLY valid JSON in this exact shape:
-{
-  "ai_summary": "<short objective paragraph>",
-  "actions": []
-}
-
-Rules:
-- "ai_summary": a short objective paragraph (2-4 sentences) about the plant situation and environment, based only on the provided data.
-- "actions": an array of actions you decide are needed. Each item MUST be exactly one of the allowed actions below. Use an empty array if none are needed.
-
-Allowed actions:
-${actionLines}
-
-Reading the data:
-- Each day is split into night 00:00-06:00, morning 06:00-12:00, afternoon 12:00-18:00 and evening 18:00-00:00, local time.
-- "n" is the number of readings in a segment.
-- Light and UV are naturally near zero at night.
-
-Do not invent sensor values. Do not output markdown or any text outside the JSON object.`;
-}
-
-function formatValue(value, type) {
-  if (value == null) return "";
-  return type === "pressure"
-    ? String(Math.round(value))
-    : String(Number(value.toFixed(1)));
-}
-
-function buildCurrentTable(sensors) {
-  const rows = sensors.map((sensor) =>
-    [
-      sensor.field,
-      sensor.type,
-      UNITS[sensor.type] ?? "",
-      formatValue(sensor.avg, sensor.type),
-      formatValue(sensor.min, sensor.type),
-      formatValue(sensor.max, sensor.type),
-    ].join(",")
-  );
-
-  return ["sensor,type,unit,avg,min,max", ...rows].join("\n");
-}
-
-function buildHistoryTable(sensors, previousSummaries) {
-  const fields = sensors.map((sensor) => sensor.field);
-
-  const rows = previousSummaries.map((previous) => {
-    const byField = new Map(previous.sensors.map((sensor) => [sensor.field, sensor]));
-    const readings = previous.sensors[0]?.readings_count ?? 0;
-
-    const values = fields.map((field) => {
-      const sensor = byField.get(field);
-      return sensor ? formatValue(sensor.avg, sensor.type) : "";
-    });
-
-    return [`${previous.timeframe} ${previous.date.slice(5)}`, readings, ...values].join(",");
-  });
-
-  return [["segment", "n", ...fields].join(","), ...rows].join("\n");
-}
-
-function buildActionHistory(previousSummaries) {
-  return previousSummaries
-    .map((previous) => {
-      const actions = previous.ai_summary?.actions ?? [];
-      const label = actions.length > 0 ? actions.join(" ") : "none";
-      return `${previous.timeframe} ${previous.date.slice(5)}: ${label}`;
-    })
-    .join("\n");
-}
-
-function buildUserPrompt({ device, date, segment, sensors, previousSummaries }) {
-  const readings = sensors[0]?.readings_count ?? 0;
-  const startLabel = `${String(segment.startHour).padStart(2, "0")}:00`;
-  const endLabel = `${String(segment.endHour % 24).padStart(2, "0")}:00`;
-
-  const sections = [
-    `Device: ${device.name} (${PLANT_TYPE})`,
-    `Segment: ${segment.name} ${startLabel}-${endLabel} on ${date} (${TIME_ZONE}), ${readings} readings`,
-    "",
-    "current",
-    buildCurrentTable(sensors),
-  ];
-
-  if (previousSummaries.length > 0) {
-    sections.push(
-      "",
-      "previous 24h, averages, oldest first",
-      buildHistoryTable(sensors, previousSummaries),
-      "",
-      "previous actions, oldest first",
-      buildActionHistory(previousSummaries)
-    );
-
-    const lastNarrative = [...previousSummaries]
-      .reverse()
-      .find((previous) => previous.ai_summary?.summary);
-
-    if (lastNarrative) {
-      sections.push(
-        "",
-        `last summary (${lastNarrative.timeframe} ${lastNarrative.date.slice(5)})`,
-        lastNarrative.ai_summary.summary
-      );
-    }
-  }
-
-  return sections.join("\n");
-}
-
-function parseAiResponse(rawContent, allowedActions) {
-  const parsed = JSON.parse(rawContent);
-  const summary =
-    typeof parsed.ai_summary === "string" ? parsed.ai_summary.trim() : null;
-
-  const allowed = new Set(allowedActions);
-  const actions = Array.isArray(parsed.actions)
-    ? [...new Set(parsed.actions.filter((action) => allowed.has(action)))]
-    : [];
-
-  if (!summary) {
-    throw new Error("LLM response missing ai_summary string");
-  }
-
-  return { model: AI_MODEL, summary, actions };
-}
-
-function logAiError(err) {
-  const label = [err.status, err.type, err.code].filter(Boolean).join(" ");
-  console.warn(`    AI summary failed${label ? ` (${label})` : ""}: ${err.message}`);
-
-  if (err.error) {
-    console.warn(`    api error: ${JSON.stringify(err.error)}`);
-  }
-
-  if (err instanceof SyntaxError) {
-    console.warn("    the model returned content that is not valid JSON");
-  }
-
-  if (!err.status && !err.error) {
-    console.warn(err.stack ?? err);
-  }
-}
-
-async function generateAiSummary(context, allowedActions) {
-  try {
-    const response = await openai.chat.completions.create({
-      model: AI_MODEL,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: buildSystemPrompt(allowedActions) },
-        { role: "user", content: buildUserPrompt(context) },
-      ],
-    });
-
-    return parseAiResponse(response.choices[0].message.content, allowedActions);
-  } catch (err) {
-    logAiError(err);
-    return null;
-  }
-}
-
 async function saveSummary({
   deviceId,
   date,
@@ -382,6 +192,16 @@ async function saveSummary({
 
   try {
     await client.query("BEGIN");
+
+    await client.query(
+      `DELETE FROM sensor_actions
+       WHERE summary_id IN (
+         SELECT id FROM sensor_summary
+         WHERE device_id = $1
+           AND starts_at = $2
+       )`,
+      [deviceId, startsAt]
+    );
 
     await client.query(
       `DELETE FROM sensor_summary
@@ -459,10 +279,17 @@ async function summarizeSegment(device, date, segment, bounds) {
 
   const useAi = AI_ENABLED && device.use_ai === true && sensors.length > 0;
   const aiSummary = useAi
-    ? await generateAiSummary(
-        { device, date, segment, sensors, previousSummaries },
-        resolveAllowedActions(device)
-      )
+    ? await runPlantAgent({
+        context: {
+          device,
+          date,
+          segment,
+          startsAt,
+          endsAt,
+          sensors,
+        },
+        allowedActions: resolveAllowedActions(device),
+      })
     : null;
 
   await saveSummary({
@@ -537,7 +364,7 @@ async function run(args) {
   const devices = await getDeviceConfigs();
 
   console.log(
-    `${targets.length} segment(s) x ${devices.length} device(s), AI ${AI_ENABLED ? "on" : "off"}`
+    `${targets.length} segment(s) x ${devices.length} device(s), AI ${AI_ENABLED ? "on" : "off"} (${AI_MODEL}, ${PLANT_TYPE})`
   );
 
   for (const { date, segment, bounds } of targets) {
@@ -567,8 +394,11 @@ async function run(args) {
       }
 
       if (aiSummary) {
+        const toolSteps = Array.isArray(aiSummary.summary)
+          ? aiSummary.summary.filter((step) => step.kind === "tool").length
+          : 0;
         console.log(
-          `    AI: ${aiSummary.actions.length > 0 ? aiSummary.actions.join(", ") : "no actions"}`
+          `    AI: ${aiSummary.actions.length > 0 ? aiSummary.actions.join(", ") : "no actions"} (${toolSteps} tool step(s))`
         );
         if (aiSummary.actions.length > 0) {
           console.log(`    queued sensor_actions: ${JSON.stringify(aiSummary.actions)}`);
